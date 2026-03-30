@@ -273,8 +273,14 @@ async def register(data: RegisterRequest):
         "email": data.email,
         "name": data.name,
         "password": hash_password(data.password),
+
+        # postojeće
         "total_xp": 0,
         "is_premium": False,
+
+        # 🔥 NOVO (LIMIT SYSTEM)
+        "daily_messages_used": 0,
+        "last_reset_date": str(date.today()),
     })
 
     return {
