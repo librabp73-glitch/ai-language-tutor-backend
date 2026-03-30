@@ -113,34 +113,30 @@ def generate_sentence_hash(sentence: str):
 
     # ================= AI LIMIT =================
 
-FREE_DAILY_LIMIT = 10
-PREMIUM_DAILY_LIMIT = 200
-
 async def check_ai_limit(user_id: str, is_premium: bool):
 
-    today = date.today().isoformat()
+    # 🔥 PREMIUM → nema limit
+    if is_premium:
+        return
 
-    usage = await daily_usage.find_one({
-        "user_id": user_id,
-        "date": today
-    })
+    FREE_LIMIT = 10
 
-    limit = PREMIUM_DAILY_LIMIT if is_premium else FREE_DAILY_LIMIT
+    user = await users.find_one({"_id": user_id})
 
-    if usage and usage["count"] >= limit:
-        raise HTTPException(status_code=403, detail="Daily AI limit reached")
+    used = user.get("daily_messages_used", 0)
 
-    if usage:
-        await daily_usage.update_one(
-            {"_id": usage["_id"]},
-            {"$inc": {"count": 1}}
+    # ❌ BLOCK
+    if used >= FREE_LIMIT:
+        raise HTTPException(
+            status_code=403,
+            detail="Daily limit reached. Upgrade to PRO."
         )
-    else:
-        await daily_usage.insert_one({
-            "user_id": user_id,
-            "date": today,
-            "count": 1
-        })
+
+    # ✅ INCREMENT
+    await users.update_one(
+        {"_id": user_id},
+        {"$inc": {"daily_messages_used": 1}}
+    )
 
 
 # ================= AI MEMORY =================
