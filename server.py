@@ -309,6 +309,21 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
         user = await users.find_one({"_id": user_id})
         is_premium = user.get("is_premium", False)
 
+        # 🔥 RESET DAILY LIMIT (NOVO)
+        today = str(date.today())
+
+        if user.get("last_reset_date") != today:
+            await users.update_one(
+                {"_id": user["_id"]},
+                {
+                    "$set": {
+                        "daily_messages_used": 0,
+                        "last_reset_date": today
+                    }
+                }
+            )
+            user["daily_messages_used"] = 0
+
         # 🧠 1. SMART BLOCK (anti abuse)
         if len(data.message) > 300:
             raise HTTPException(status_code=400, detail="Message too long")
