@@ -346,7 +346,7 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
         })
 
         if cached:
-            print("CACHE HIT")
+            print("CACHE HIT CHAT")
 
             await ai_cache.update_one(
                 {"_id": cached["_id"]},
@@ -416,7 +416,7 @@ Explanation (User language):
         await ai_cache.insert_one({
             "sentence_hash": sentence_hash,
             "prompt_version": PROMPT_VERSION,
-            "user_input": clean_message,
+            "user_input": normalized_message,
             "ai_response": ai_response,
             "created_at": datetime.utcnow(),
             "usage_count": 1
@@ -588,7 +588,7 @@ Never add extra commentary.
         # ✅ CACHE SAVE
         await ai_cache.insert_one({
             "sentence_hash": sentence_hash,
-            "user_input": clean_answer,
+            "user_input": normalized_answer,
             "ai_response": ai_response,
             "created_at": datetime.utcnow(),
             "usage_count": 1,
