@@ -332,7 +332,9 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
 
         # 🧠 2. HASH
         clean_message = data.message.strip()
-        sentence_hash = generate_sentence_hash(clean_message)
+        normalized_message = " ".join(clean_message.split())
+
+        sentence_hash = generate_sentence_hash(normalized_message)
 
         print("INPUT:", clean_message)
         print("HASH:", sentence_hash)
@@ -442,7 +444,9 @@ async def lesson_ai_check(
         await check_ai_limit(user_id, is_premium)
 
         clean_answer = data.answer.strip()
-        sentence_hash = generate_sentence_hash(clean_answer)
+        normalized_answer = " ".join(clean_answer.split())
+
+        sentence_hash = generate_sentence_hash(normalized_answer)
 
         cached = await ai_cache.find_one({
             "sentence_hash": sentence_hash,
@@ -574,7 +578,7 @@ Never add extra commentary.
                 },
                 {
                     "role": "user",
-                    "content": clean_answer
+                    "content": normalized_answer
                 }
             ],
         )
