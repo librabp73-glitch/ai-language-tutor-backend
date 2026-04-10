@@ -334,6 +334,9 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
         clean_message = data.message.strip()
         sentence_hash = generate_sentence_hash(clean_message)
 
+        print("INPUT:", clean_message)
+        print("HASH:", sentence_hash)
+
         # 🧠 3. CACHE CHECK (PRVO!)
         cached = await ai_cache.find_one({
             "sentence_hash": sentence_hash,
@@ -355,6 +358,7 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
         await check_ai_limit(user_id, is_premium)
 
         # 🧠 5. AI CALL
+        normalized_message = " ".join(clean_message.split())
         completion = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0.3,
@@ -399,7 +403,7 @@ Explanation (User language):
                 },
                 {
                     "role": "user",
-                    "content": clean_message
+                    "content": normalized_message
                 },
             ],
         )
@@ -437,7 +441,8 @@ async def lesson_ai_check(
 
         await check_ai_limit(user_id, is_premium)
 
-        sentence_hash = generate_sentence_hash(data.answer)
+        clean_answer = data.answer.strip()
+        sentence_hash = generate_sentence_hash(clean_answer)
 
         cached = await ai_cache.find_one({
             "sentence_hash": sentence_hash,
@@ -569,7 +574,7 @@ Never add extra commentary.
                 },
                 {
                     "role": "user",
-                    "content": data.answer
+                    "content": clean_answer
                 }
             ],
         )
@@ -579,7 +584,7 @@ Never add extra commentary.
         # ✅ CACHE SAVE
         await ai_cache.insert_one({
             "sentence_hash": sentence_hash,
-            "user_input": data.answer,
+            "user_input": clean_answer,
             "ai_response": ai_response,
             "created_at": datetime.utcnow(),
             "usage_count": 1,
