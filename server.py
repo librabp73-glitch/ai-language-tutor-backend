@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v4"
+PROMPT_VERSION = "v5"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -505,6 +505,9 @@ Sentence suggestions:
 IMPORTANT RULES:
 
 WRONG TAGS
+
+<wrong> tags are allowed ONLY inside the "Original sentence" section.
+
 You MUST mark ALL mistakes, not just spelling.
 
 This includes:
@@ -518,8 +521,6 @@ This includes:
 If a whole phrase is incorrect, wrap the entire phrase in <wrong> tags.
 
 Never skip a mistake.
-
-<wrong> tags are allowed ONLY inside the "Original sentence" section.
 
 Example:
 
