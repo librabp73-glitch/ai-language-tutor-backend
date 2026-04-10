@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v5"
+PROMPT_VERSION = "v6"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -99,15 +99,19 @@ def create_token(user_id: str):
 import re
 
 def generate_sentence_hash(sentence: str):
+    import re
 
-    # 1. lowercase
-    normalized = sentence.lower()
+    # lowercase
+    normalized = sentence.lower().strip()
 
-    # 2. ukloni SVU interpunkciju (ne samo .!?)
+    # ukloni interpunkciju
     normalized = re.sub(r"[^\w\s]", "", normalized)
 
-    # 3. ukloni višak razmaka
+    # ukloni višak razmaka
     normalized = " ".join(normalized.split())
+
+    # 🔥 KLJUČNO: ukloni trailing razlike
+    normalized = normalized.strip()
 
     return hashlib.sha256(normalized.encode()).hexdigest()
 
