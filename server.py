@@ -412,7 +412,7 @@ Explanation (User language):
 
         ai_response = completion.choices[0].message.content
 
-        # 🧠 6. SAVE CACHE
+                # 🧠 6. SAVE CACHE
         try:
             print("USING HASH:", sentence_hash)
             print("USING INPUT:", normalized_message)
@@ -433,7 +433,13 @@ Explanation (User language):
         except Exception as e:
             print("CHAT CACHE ERROR:", str(e))
 
+        # ✅ OVO MORA BITI UVUČENO (INDENT)
         return {"response": ai_response}
+
+    # ✅ OVO JE GLAVNI EXCEPT (ISTI NIVO KAO try)
+    except Exception as e:
+        print("CHAT ERROR:", e)
+        raise HTTPException(status_code=500, detail="AI failed")
 
 
 # ================= LESSON AI CHECK =================
