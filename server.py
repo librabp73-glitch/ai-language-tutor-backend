@@ -433,6 +433,8 @@ Explanation (User language):
         except Exception as e:
             print("CHAT CACHE ERROR:", str(e))
 
+        return {"response": ai_response}
+
 
 # ================= LESSON AI CHECK =================
 
@@ -446,12 +448,12 @@ async def lesson_ai_check(
         user = await users.find_one({"_id": user_id})
         is_premium = user.get("is_premium", False)
 
-        await check_ai_limit(user_id, is_premium)
-
         clean_answer = data.answer.strip()
         normalized_answer = " ".join(clean_answer.split())
 
         sentence_hash = generate_sentence_hash(normalized_answer)
+
+        print("HASH LESSON:", sentence_hash)
 
         cached = await ai_cache.find_one({
             "sentence_hash": sentence_hash,
@@ -469,6 +471,9 @@ async def lesson_ai_check(
             print("CACHE HIT LESSON")
 
             return {"feedback": cached["ai_response"]}
+
+        # 🔥 TEK SADA IDE LIMIT
+        await check_ai_limit(user_id, is_premium)
 
         # ✅ SAVE MISTAKE
         if is_premium:
