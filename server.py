@@ -602,14 +602,24 @@ Never add extra commentary.
         ai_response = completion.choices[0].message.content
 
         # ✅ CACHE SAVE
-        await ai_cache.insert_one({
-            "sentence_hash": sentence_hash,
-            "user_input": normalized_answer,
-            "ai_response": ai_response,
-            "created_at": datetime.utcnow(),
-            "usage_count": 1,
-            "prompt_version": PROMPT_VERSION
-        })
+        try:
+            print("SAVING LESSON CACHE...")
+            print("LESSON HASH:", sentence_hash)
+            print("LESSON INPUT:", normalized_answer)
+
+            await ai_cache.insert_one({
+                "sentence_hash": sentence_hash,
+                "user_input": normalized_answer,
+                "ai_response": ai_response,
+                "created_at": datetime.utcnow(),
+                "usage_count": 1,
+                "prompt_version": PROMPT_VERSION
+            })
+
+            print("LESSON CACHE SAVED!")
+
+        except Exception as e:
+            print("LESSON CACHE ERROR:", str(e))
 
         return {"feedback": ai_response}
 
