@@ -419,7 +419,7 @@ Explanation (User language):
 
             print("SAVING CHAT CACHE...")
 
-           await ai_cache.insert_one({
+            await ai_cache.insert_one({
                "sentence_hash": sentence_hash,
                "prompt_version": PROMPT_VERSION,
                "user_input": normalized_message,
