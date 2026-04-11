@@ -413,20 +413,25 @@ Explanation (User language):
         ai_response = completion.choices[0].message.content
 
         # 🧠 6. SAVE CACHE
-        await ai_cache.insert_one({
-            "sentence_hash": sentence_hash,
-            "prompt_version": PROMPT_VERSION,
-            "user_input": normalized_message,
-            "ai_response": ai_response,
-            "created_at": datetime.utcnow(),
-            "usage_count": 1
-        })
+        try:
+            print("USING HASH:", sentence_hash)
+            print("USING INPUT:", normalized_message)
 
-        return {"response": ai_response}
+            print("SAVING CHAT CACHE...")
 
-    except Exception as e:
-        print("CHAT ERROR:", e)
-        raise HTTPException(status_code=500, detail="AI failed")
+           await ai_cache.insert_one({
+               "sentence_hash": sentence_hash,
+               "prompt_version": PROMPT_VERSION,
+               "user_input": normalized_message,
+               "ai_response": ai_response,
+               "created_at": datetime.utcnow(),
+               "usage_count": 1
+            })
+
+            print("CHAT CACHE SAVED!")
+
+        except Exception as e:
+            print("CHAT CACHE ERROR:", str(e))
 
 
 # ================= LESSON AI CHECK =================
