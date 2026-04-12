@@ -115,6 +115,32 @@ def generate_sentence_hash(sentence: str):
 
     return hashlib.sha256(normalized.encode()).hexdigest()
 
+def clean_english_version(ai_response: str) -> str:
+    try:
+        parts = ai_response.split("English version:")
+
+        if len(parts) < 2:
+            return ai_response
+
+        before = parts[0]
+        after = parts[1]
+
+        # podeli dalje do sledeće sekcije
+        split_after = after.split("Explanation")
+
+        english_part = split_after[0]
+        rest = "Explanation" + split_after[1] if len(split_after) > 1 else ""
+
+        # 🔥 ukloni wrong tagove
+        import re
+        english_clean = re.sub(r"</?wrong>", "", english_part)
+
+        return before + "English version:\n" + english_clean.strip() + "\n\n" + rest.strip()
+
+    except Exception as e:
+        print("CLEAN ERROR:", e)
+        return ai_response
+
     # ================= AI LIMIT =================
 
 async def check_ai_limit(user_id: str, is_premium: bool):
@@ -360,7 +386,6 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
         await check_ai_limit(user_id, is_premium)
 
         # 🧠 5. AI CALL
-        normalized_message = " ".join(clean_message.split())
         completion = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0.3,
@@ -401,6 +426,17 @@ Explanation (English):
 (If not English)
 Explanation (User language):
 (translated explanation)
+
+CRITICAL RULE:
+
+The "English version" section MUST NEVER contain <wrong> tags.
+
+If you generate <wrong> tags in this section, your answer is INVALID.
+
+You must ALWAYS remove all <wrong> tags from the English version.
+
+FINAL CHECK BEFORE RESPONSE:
+- Ensure NO <wrong> tags exist in English version
 """
                 },
                 {
@@ -411,6 +447,9 @@ Explanation (User language):
         )
 
         ai_response = completion.choices[0].message.content
+
+        # 🔥 FIX
+        ai_response = clean_english_version(ai_response)
 
                 # 🧠 6. SAVE CACHE
         try:
