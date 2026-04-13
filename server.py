@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v10"
+PROMPT_VERSION = "v11"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -407,7 +407,10 @@ Detected language:
 <language name>
 
 Original sentence:
-<sentence with ALL mistakes wrapped in <wrong> tags>
+- If the input is English:
+  <sentence with ALL mistakes wrapped in <wrong> tags>
+- If the input is NOT English:
+  <repeat the original sentence WITHOUT any <wrong> tags>
 
 English version:
 <corrected sentence WITHOUT any <wrong> tags>
@@ -443,8 +446,15 @@ RULES:
 WRONG TAG RULES:
 
 - <wrong> tags are allowed ONLY inside "Original sentence"
-- You MUST mark ALL grammar AND spelling mistakes
-- Never skip a mistake
+
+- If the input language is English:
+  → You MUST mark ALL grammar AND spelling mistakes using <wrong> tags
+
+- If the input language is NOT English:
+  → DO NOT use <wrong> tags at all
+  → Just repeat the original sentence
+
+- Never skip a mistake (for English input)
 
 CRITICAL RULE:
 
@@ -465,6 +475,9 @@ You MUST include ALL sections:
 - Explanation (User language)
 
 Never skip any section.
+CRITICAL:
+
+If the input is NOT English and you use <wrong> tags, your answer is INVALID.
 """
                 },
                 {
