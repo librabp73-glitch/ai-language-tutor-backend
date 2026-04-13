@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v8"
+PROMPT_VERSION = "v9"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -551,6 +551,8 @@ Original sentence:
 
 English version:
 <correct English sentence>
+The "English version" MUST ALWAYS be in English.
+Never translate it into another language.
 
 Explanation (English):
 <clear grammar explanation, MAX 2 sentences>
@@ -565,6 +567,8 @@ Encouragement:
 <short motivational sentence>
 
 Sentence suggestions:
+Sentence suggestions MUST ALWAYS be in English.
+Never use another language.
 • <sentence 1>
 • <sentence 2>
 • <sentence 3>
