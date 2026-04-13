@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v9"
+PROMPT_VERSION = "v10"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -418,6 +418,10 @@ Explanation (English):
 Explanation (User language):
 <same explanation translated to the user's language>
 
+This section is MANDATORY.
+You MUST ALWAYS include it.
+Never skip it, even if the input is English.
+
 
 RULES:
 
@@ -448,6 +452,19 @@ The "English version" MUST NEVER contain <wrong> tags.
 
 FINAL CHECK BEFORE RESPONSE:
 - Ensure NO <wrong> tags exist in English version
+
+CRITICAL:
+
+If any section is missing, your answer is INVALID.
+
+You MUST include ALL sections:
+- Detected language
+- Original sentence
+- English version
+- Explanation (English)
+- Explanation (User language)
+
+Never skip any section.
 """
                 },
                 {
