@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v7"
+PROMPT_VERSION = "v8"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -608,6 +608,20 @@ Never use another language.
 
 If the detected language is NOT English:
 Translate the second explanation into that language.
+
+STRICT LANGUAGE ENFORCEMENT:
+
+Explanation (User language) MUST follow the detected language EXACTLY.
+
+- If detected language is English:
+  Explanation (User language) MUST be in English only.
+
+- If detected language is NOT English:
+  Explanation (User language) MUST be in the SAME language as the input.
+
+NEVER use Spanish, French, or any other language unless it exactly matches the user's input language.
+
+If unsure, ALWAYS default to English.
 
 
 SENTENCE SUGGESTIONS
