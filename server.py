@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v11"
+PROMPT_VERSION = "v12"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -489,8 +489,33 @@ If the input is NOT English and you use <wrong> tags, your answer is INVALID.
 
         ai_response = completion.choices[0].message.content
 
-        # 🔥 FIX
+        # 🔥 CLEAN WRONG TAGS FROM ENGLISH VERSION
         ai_response = clean_english_version(ai_response)
+
+        # 🔥 FALLBACK: ensure user language explanation exists
+        if "Explanation (User language):" not in ai_response:
+            print("⚠️ MISSING USER LANGUAGE EXPLANATION - APPLYING FALLBACK")
+
+            try:
+               parts = ai_response.split("Explanation (English):")
+
+               if len(parts) > 1:
+                   before = parts[0]
+                   after = parts[1]
+
+                   english_lines = after.strip().split("\n")
+                   english_explanation = english_lines[0]
+
+                   ai_response = (
+                      before
+                      + "Explanation (English):\n"
+                      + english_explanation
+                      + "\n\nExplanation (User language):\n"
+                      + english_explanation
+                    )
+
+            except Exception as e:
+                print("FALLBACK ERROR:", e)
 
                 # 🧠 6. SAVE CACHE
         try:
