@@ -47,21 +47,27 @@ app.add_middleware(
 
 # ================= ERROR =================
 
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     print("GLOBAL ERROR:", exc)
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
+
 # ================= SECURITY =================
 
 security = HTTPBearer()
 
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(
+            credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM]
+        )
         return payload["sub"]
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
 
 # ================= DB =================
 
@@ -78,6 +84,7 @@ ai_cache = db.ai_cache
 daily_usage = db.daily_usage
 
 # ================= HELPERS =================
+
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -98,6 +105,7 @@ def create_token(user_id: str):
 # 🔥 UPGRADED HASH (SMART CACHE)
 import re
 
+
 def generate_sentence_hash(sentence: str):
     import re
 
@@ -114,6 +122,7 @@ def generate_sentence_hash(sentence: str):
     normalized = normalized.strip()
 
     return hashlib.sha256(normalized.encode()).hexdigest()
+
 
 def clean_english_version(ai_response: str) -> str:
     try:
@@ -133,15 +142,23 @@ def clean_english_version(ai_response: str) -> str:
 
         # 🔥 ukloni wrong tagove
         import re
+
         english_clean = re.sub(r"</?wrong>", "", english_part)
 
-        return before + "English version:\n" + english_clean.strip() + "\n\n" + rest.strip()
+        return (
+            before
+            + "English version:\n"
+            + english_clean.strip()
+            + "\n\n"
+            + rest.strip()
+        )
 
     except Exception as e:
         print("CLEAN ERROR:", e)
         return ai_response
 
     # ================= AI LIMIT =================
+
 
 async def check_ai_limit(user_id: str, is_premium: bool):
 
@@ -158,35 +175,29 @@ async def check_ai_limit(user_id: str, is_premium: bool):
     # ❌ BLOCK
     if used >= FREE_LIMIT:
         raise HTTPException(
-            status_code=403,
-            detail="Daily limit reached. Upgrade to PRO."
+            status_code=403, detail="Daily limit reached. Upgrade to PRO."
         )
 
     # ✅ INCREMENT
-    await users.update_one(
-        {"_id": user_id},
-        {"$inc": {"daily_messages_used": 1}}
-    )
+    await users.update_one({"_id": user_id}, {"$inc": {"daily_messages_used": 1}})
 
 
 # ================= AI MEMORY =================
 
+
 async def save_user_mistake(user_id: str, sentence: str):
 
-    await user_mistakes.insert_one({
-        "user_id": user_id,
-        "sentence": sentence,
-        "created_at": datetime.utcnow()
-    })
+    await user_mistakes.insert_one(
+        {"user_id": user_id, "sentence": sentence, "created_at": datetime.utcnow()}
+    )
 
 
 # ================= GET USER MISTAKES =================
 
+
 async def get_user_common_mistakes(user_id: str):
 
-    cursor = user_mistakes.find(
-        {"user_id": user_id}
-    ).sort("created_at", -1).limit(20)
+    cursor = user_mistakes.find({"user_id": user_id}).sort("created_at", -1).limit(20)
 
     mistakes = []
 
@@ -197,6 +208,7 @@ async def get_user_common_mistakes(user_id: str):
 
 
 # ================= ADAPTIVE AI LESSON =================
+
 
 async def generate_adaptive_lesson(user_id: str):
 
@@ -232,9 +244,7 @@ Task:
 
     completion = openai_client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
+        messages=[{"role": "user", "content": prompt}],
     )
 
     return completion.choices[0].message.content
@@ -268,24 +278,31 @@ async def get_streak_summary(user_id: str):
 
     return current_streak, longest_streak
 
+
 # ================= MODELS =================
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     name: str
 
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+
 class ChatRequest(BaseModel):
     message: str
+
 
 class LessonAnswerRequest(BaseModel):
     answer: str
 
+
 # ================= AUTH =================
+
 
 @app.post("/api/auth/register")
 async def register(data: RegisterRequest):
@@ -294,25 +311,26 @@ async def register(data: RegisterRequest):
 
     user_id = str(uuid.uuid4())
 
-    await users.insert_one({
-        "_id": user_id,
-        "email": data.email,
-        "name": data.name,
-        "password": hash_password(data.password),
-
-        # postojeće
-        "total_xp": 0,
-        "is_premium": False,
-
-        # 🔥 NOVO (LIMIT SYSTEM)
-        "daily_messages_used": 0,
-        "last_reset_date": str(date.today()),
-    })
+    await users.insert_one(
+        {
+            "_id": user_id,
+            "email": data.email,
+            "name": data.name,
+            "password": hash_password(data.password),
+            # postojeće
+            "total_xp": 0,
+            "is_premium": False,
+            # 🔥 NOVO (LIMIT SYSTEM)
+            "daily_messages_used": 0,
+            "last_reset_date": str(date.today()),
+        }
+    )
 
     return {
         "session_token": create_token(user_id),
         "user": {"id": user_id, "email": data.email, "name": data.name},
     }
+
 
 @app.post("/api/auth/login")
 async def login(data: LoginRequest):
@@ -325,67 +343,53 @@ async def login(data: LoginRequest):
         "user": {"id": user["_id"], "email": user["email"], "name": user["name"]},
     }
 
-# ================= CHAT =================
+
+# ============ CHAT ============
+
 
 @app.post("/api/chat/send")
 async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user)):
 
     try:
-
         user = await users.find_one({"_id": user_id})
         is_premium = user.get("is_premium", False)
 
-        # 🔥 RESET DAILY LIMIT (NOVO)
+        # 🔥 RESET DAILY LIMIT
         today = str(date.today())
-
         if user.get("last_reset_date") != today:
             await users.update_one(
                 {"_id": user["_id"]},
-                {
-                    "$set": {
-                        "daily_messages_used": 0,
-                        "last_reset_date": today
-                    }
-                }
+                {"$set": {"daily_messages_used": 0, "last_reset_date": today}},
             )
             user["daily_messages_used"] = 0
 
-        # 🧠 1. SMART BLOCK (anti abuse)
+        # 🧠 SMART BLOCK
         if len(data.message) > 300:
             raise HTTPException(status_code=400, detail="Message too long")
-        if not data.message.strip():
-            raise HTTPException(status_code=400, detail="Empty message")    
 
-        # 🧠 2. HASH
+        if not data.message.strip():
+            raise HTTPException(status_code=400, detail="Empty message")
+
+        # 🧠 HASH
         clean_message = data.message.strip()
         normalized_message = " ".join(clean_message.split())
-
         sentence_hash = generate_sentence_hash(normalized_message)
 
-        print("INPUT:", clean_message)
-        print("HASH:", sentence_hash)
-
-        # 🧠 3. CACHE CHECK (PRVO!)
-        cached = await ai_cache.find_one({
-            "sentence_hash": sentence_hash,
-            "prompt_version": PROMPT_VERSION
-        })
+        # 🧠 CACHE CHECK
+        cached = await ai_cache.find_one(
+            {"sentence_hash": sentence_hash, "prompt_version": PROMPT_VERSION}
+        )
 
         if cached:
-            print("CACHE HIT CHAT")
-
             await ai_cache.update_one(
-                {"_id": cached["_id"]},
-                {"$inc": {"usage_count": 1}}
+                {"_id": cached["_id"]}, {"$inc": {"usage_count": 1}}
             )
-
-            # 🔥 NE TROŠI LIMIT
             return {"response": cached["ai_response"]}
 
-        # 🧠 4. TEK SAD LIMIT
+        # 🧠 LIMIT
         await check_ai_limit(user_id, is_premium)
 
-        # 🧠 5. AI CALL
+        # 🤖 AI CALL
         completion = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             temperature=0.3,
@@ -393,8 +397,7 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
             messages=[
                 {
                     "role": "system",
-                    "content": """
-You are an English tutor.
+                    "content": """You are an English tutor.
 
 You MUST respond using the EXACT structure below.
 
@@ -407,10 +410,12 @@ Detected language:
 <language name>
 
 Original sentence:
-- If the input is English:
-  <sentence with ALL mistakes wrapped in <wrong> tags>
-- If the input is NOT English:
-  <repeat the original sentence WITHOUT any <wrong> tags>
+
+* If the input is English:
+<sentence with ALL mistakes wrapped in <wrong> tags>
+
+* If the input is NOT English:
+<repeat the original sentence WITHOUT any <wrong> tags>
 
 English version:
 <corrected sentence WITHOUT any <wrong> tags>
@@ -424,7 +429,6 @@ Explanation (User language):
 This section is MANDATORY.
 You MUST ALWAYS include it.
 Never skip it, even if the input is English.
-
 
 RULES:
 
@@ -445,18 +449,11 @@ RULES:
 
 WRONG TAG RULES:
 
-- <wrong> tags are allowed ONLY inside "Original sentence"
+- <wrong> tags are allowed ONLY if the input is English
+- You MUST mark ALL grammar AND spelling mistakes
+- Never skip a mistake
 
-- If the input language is English:
-  → You MUST mark ALL grammar AND spelling mistakes using <wrong> tags
-
-- If the input language is NOT English:
-  → DO NOT use <wrong> tags at all
-  → Just repeat the original sentence
-
-- Never skip a mistake (for English input)
-
-CRITICAL RULE:
+CRITICAL:
 
 The "English version" MUST NEVER contain <wrong> tags.
 
@@ -465,83 +462,53 @@ FINAL CHECK BEFORE RESPONSE:
 
 CRITICAL:
 
-If any section is missing, your answer is INVALID.
-
-You MUST include ALL sections:
-- Detected language
-- Original sentence
-- English version
-- Explanation (English)
-- Explanation (User language)
-
-Never skip any section.
-CRITICAL:
-
 If the input is NOT English and you use <wrong> tags, your answer is INVALID.
-"""
+""",
                 },
-                {
-                    "role": "user",
-                    "content": normalized_message
-                },
+                {"role": "user", "content": normalized_message},
             ],
         )
 
         ai_response = completion.choices[0].message.content
 
-        # 🔥 CLEAN WRONG TAGS FROM ENGLISH VERSION
+        # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
 
-        # 🔥 FALLBACK: ensure user language explanation exists
+        # 🔥 FALLBACK
         if "Explanation (User language):" not in ai_response:
-            print("⚠️ MISSING USER LANGUAGE EXPLANATION - APPLYING FALLBACK")
+            parts = ai_response.split("Explanation (English):")
 
-            try:
-               parts = ai_response.split("Explanation (English):")
+            if len(parts) > 1:
+                before = parts[0]
+                after = parts[1]
 
-               if len(parts) > 1:
-                   before = parts[0]
-                   after = parts[1]
+                eng_text = after.strip().split("\n")[0]
 
-                   english_lines = after.strip().split("\n")
-                   english_explanation = english_lines[0]
+                ai_response = (
+                    before
+                    + "Explanation (English):\n"
+                    + eng_text
+                    + "\n\nExplanation (User language):\n"
+                    + eng_text
+                )
 
-                   ai_response = (
-                      before
-                      + "Explanation (English):\n"
-                      + english_explanation
-                      + "\n\nExplanation (User language):\n"
-                      + english_explanation
-                    )
-
-            except Exception as e:
-                print("FALLBACK ERROR:", e)
-
-                # 🧠 6. SAVE CACHE
+        # 💾 SAVE CACHE
         try:
-            print("USING HASH:", sentence_hash)
-            print("USING INPUT:", normalized_message)
-
-            print("SAVING CHAT CACHE...")
-
-            await ai_cache.insert_one({
-               "sentence_hash": sentence_hash,
-               "prompt_version": PROMPT_VERSION,
-               "user_input": normalized_message,
-               "ai_response": ai_response,
-               "created_at": datetime.utcnow(),
-               "usage_count": 1
-            })
-
-            print("CHAT CACHE SAVED!")
-
+            await ai_cache.insert_one(
+                {
+                    "sentence_hash": sentence_hash,
+                    "prompt_version": PROMPT_VERSION,
+                    "user_input": normalized_message,
+                    "ai_response": ai_response,
+                    "created_at": datetime.utcnow(),
+                    "usage_count": 1,
+                }
+            )
         except Exception as e:
-            print("CHAT CACHE ERROR:", str(e))
+            print("CACHE ERROR:", e)
 
-        # ✅ OVO MORA BITI UVUČENO (INDENT)
         return {"response": ai_response}
 
-    # ✅ OVO JE GLAVNI EXCEPT (ISTI NIVO KAO try)
     except Exception as e:
         print("CHAT ERROR:", e)
         raise HTTPException(status_code=500, detail="AI failed")
@@ -549,10 +516,10 @@ If the input is NOT English and you use <wrong> tags, your answer is INVALID.
 
 # ================= LESSON AI CHECK =================
 
+
 @app.post("/api/lesson/ai-check")
 async def lesson_ai_check(
-    data: LessonAnswerRequest,
-    user_id: str = Depends(get_current_user)
+    data: LessonAnswerRequest, user_id: str = Depends(get_current_user)
 ):
 
     try:
@@ -566,17 +533,15 @@ async def lesson_ai_check(
 
         print("HASH LESSON:", sentence_hash)
 
-        cached = await ai_cache.find_one({
-            "sentence_hash": sentence_hash,
-            "prompt_version": PROMPT_VERSION
-        })
+        cached = await ai_cache.find_one(
+            {"sentence_hash": sentence_hash, "prompt_version": PROMPT_VERSION}
+        )
 
         # ✅ CACHE HIT
         if cached:
 
             await ai_cache.update_one(
-                {"_id": cached["_id"]},
-                {"$inc": {"usage_count": 1}}
+                {"_id": cached["_id"]}, {"$inc": {"usage_count": 1}}
             )
 
             print("CACHE HIT LESSON")
@@ -713,12 +678,9 @@ Sentence suggestions:
 Never include suggestions inside Encouragement or Explanation.
 
 Never add extra commentary.
-"""
+""",
                 },
-                {
-                    "role": "user",
-                    "content": normalized_answer
-                }
+                {"role": "user", "content": normalized_answer},
             ],
         )
 
@@ -730,14 +692,16 @@ Never add extra commentary.
             print("LESSON HASH:", sentence_hash)
             print("LESSON INPUT:", normalized_answer)
 
-            await ai_cache.insert_one({
-                "sentence_hash": sentence_hash,
-                "user_input": normalized_answer,
-                "ai_response": ai_response,
-                "created_at": datetime.utcnow(),
-                "usage_count": 1,
-                "prompt_version": PROMPT_VERSION
-            })
+            await ai_cache.insert_one(
+                {
+                    "sentence_hash": sentence_hash,
+                    "user_input": normalized_answer,
+                    "ai_response": ai_response,
+                    "created_at": datetime.utcnow(),
+                    "usage_count": 1,
+                    "prompt_version": PROMPT_VERSION,
+                }
+            )
 
             print("LESSON CACHE SAVED!")
 
@@ -750,18 +714,15 @@ Never add extra commentary.
         print("LESSON AI ERROR:", e)
         raise HTTPException(status_code=500, detail="AI failed")
 
-
         # ================= TODAY LESSON =================
+
 
 @app.get("/api/lesson/today")
 async def get_today_lesson(user_id: str = Depends(get_current_user)):
 
     today = date.today().isoformat()
 
-    existing = await lesson_progress.find_one({
-        "user_id": user_id,
-        "date": today
-    })
+    existing = await lesson_progress.find_one({"user_id": user_id, "date": today})
 
     # pokušaj da generiše AI lekciju
     adaptive = await generate_adaptive_lesson(user_id)
@@ -814,7 +775,7 @@ async def get_today_lesson(user_id: str = Depends(get_current_user)):
             "explanation": explanation.strip(),
             "example": example.strip(),
             "task": task.strip(),
-            "completed_today": existing is not None
+            "completed_today": existing is not None,
         }
 
         return lesson
@@ -825,19 +786,22 @@ async def get_today_lesson(user_id: str = Depends(get_current_user)):
         "explanation": "We use Present Simple for habits.",
         "example": "I work every day.",
         "task": "Write 2 sentences.",
-        "completed_today": existing is not None
+        "completed_today": existing is not None,
     }
 
     return lesson
+
 
 @app.post("/api/lesson/complete")
 async def complete_lesson(user_id: str = Depends(get_current_user)):
     today = date.today().isoformat()
 
-    existing = await lesson_progress.find_one({
-        "user_id": user_id,
-        "date": today,
-    })
+    existing = await lesson_progress.find_one(
+        {
+            "user_id": user_id,
+            "date": today,
+        }
+    )
 
     if existing:
         return {"completed": True, "xp_earned": 0}
@@ -845,23 +809,24 @@ async def complete_lesson(user_id: str = Depends(get_current_user)):
     user = await users.find_one({"_id": user_id})
     is_premium = user.get("is_premium", False)
 
-    await lesson_progress.insert_one({
-        "user_id": user_id,
-        "date": today,
-        "completed_at": datetime.utcnow(),
-    })
+    await lesson_progress.insert_one(
+        {
+            "user_id": user_id,
+            "date": today,
+            "completed_at": datetime.utcnow(),
+        }
+    )
 
     xp = 20 if is_premium else 0
 
     if xp > 0:
-        await users.update_one(
-            {"_id": user_id},
-            {"$inc": {"total_xp": xp}}
-        )
+        await users.update_one({"_id": user_id}, {"$inc": {"total_xp": xp}})
 
     return {"completed": True, "xp_earned": xp}
 
+
 # ================= GAMIFICATION =================
+
 
 @app.get("/api/gamification/summary")
 async def gamification_summary(user_id: str = Depends(get_current_user)):
@@ -875,7 +840,9 @@ async def gamification_summary(user_id: str = Depends(get_current_user)):
         "longest_streak": longest_streak,
     }
 
+
 # ================= AI PROGRESS ANALYTICS =================
+
 
 @app.get("/api/progress/analytics")
 async def get_progress_analytics(user_id: str = Depends(get_current_user)):
@@ -885,19 +852,14 @@ async def get_progress_analytics(user_id: str = Depends(get_current_user)):
     total_xp = user.get("total_xp", 0)
 
     # broj recenica koje je korisnik napisao
-    sentences_practiced = await user_mistakes.count_documents({
-        "user_id": user_id
-    })
+    sentences_practiced = await user_mistakes.count_documents({"user_id": user_id})
 
     # pronadji najcescu gresku
     pipeline = [
         {"$match": {"user_id": user_id}},
-        {"$group": {
-            "_id": "$sentence",
-            "count": {"$sum": 1}
-        }},
+        {"$group": {"_id": "$sentence", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
-        {"$limit": 1}
+        {"$limit": 1},
     ]
 
     result = await user_mistakes.aggregate(pipeline).to_list(1)
@@ -916,15 +878,18 @@ async def get_progress_analytics(user_id: str = Depends(get_current_user)):
         "grammar_level": level,
         "sentences_practiced": sentences_practiced,
         "most_common_mistake": most_common,
-        "total_xp": total_xp
+        "total_xp": total_xp,
     }
-    
+
+
 # ================= SUBSCRIPTION =================
+
 
 @app.get("/api/subscription/status")
 async def subscription_status(user_id: str = Depends(get_current_user)):
     user = await users.find_one({"_id": user_id})
     return {"is_premium": user.get("is_premium", False)}
+
 
 @app.post("/api/subscription/upgrade")
 async def upgrade_subscription(user_id: str = Depends(get_current_user)):
@@ -933,7 +898,10 @@ async def upgrade_subscription(user_id: str = Depends(get_current_user)):
         {"$set": {"is_premium": True}},
     )
     return {"status": "ok"}
+
+
 # ================= ACHIEVEMENTS =================
+
 
 @app.get("/api/achievements")
 async def get_achievements(user_id: str = Depends(get_current_user)):
@@ -947,10 +915,7 @@ async def get_achievements(user_id: str = Depends(get_current_user)):
 
     for i in range(30):
         d = (today - timedelta(days=i)).isoformat()
-        exists = await lesson_progress.find_one({
-            "user_id": user_id,
-            "date": d
-        })
+        exists = await lesson_progress.find_one({"user_id": user_id, "date": d})
         if exists:
             streak += 1
         else:
@@ -974,6 +939,4 @@ async def get_achievements(user_id: str = Depends(get_current_user)):
         },
     ]
 
-    return {
-        "achievements": achievements
-    }    
+    return {"achievements": achievements}
