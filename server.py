@@ -481,12 +481,18 @@ If the input is NOT English and you use <wrong> tags, your answer is INVALID.
             if len(parts) > 1:
                 after = parts[1].strip()
 
-                if after == "" or len(after) < 5:
+                # 🔥 DETECT FAKE USER LANGUAGE (simple check)
+                is_english_like = " the " in after.lower() or " is " in after.lower()
+
+                if after == "" or len(after) < 5 or is_english_like:
+                    print("⚠️ INVALID USER LANGUAGE → FIXING")
+
                     eng_parts = ai_response.split("Explanation (English):")
 
                     if len(eng_parts) > 1:
                         before = eng_parts[0]
                         eng_after = eng_parts[1]
+
                         eng_text = eng_after.strip().split("\n")[0]
 
                         ai_response = (
