@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v12"
+PROMPT_VERSION = "v13"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -474,23 +474,44 @@ If the input is NOT English and you use <wrong> tags, your answer is INVALID.
         # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
 
-        # 🔥 FALLBACK
-        if "Explanation (User language):" not in ai_response:
-            parts = ai_response.split("Explanation (English):")
+        # ✅ FALLBACK IDE OVDE (UVUČEN!)
+        if "Explanation (User language):" in ai_response:
+            parts = ai_response.split("Explanation (User language):")
 
             if len(parts) > 1:
-                before = parts[0]
-                after = parts[1]
+                after = parts[1].strip()
 
-                eng_text = after.strip().split("\n")[0]
+                if after == "" or len(after) < 5:
+                    eng_parts = ai_response.split("Explanation (English):")
 
-                ai_response = (
-                    before
-                    + "Explanation (English):\n"
-                    + eng_text
-                    + "\n\nExplanation (User language):\n"
-                    + eng_text
-                )
+                    if len(eng_parts) > 1:
+                        before = eng_parts[0]
+                        eng_after = eng_parts[1]
+                        eng_text = eng_after.strip().split("\n")[0]
+
+                        ai_response = (
+                            before
+                            + "Explanation (English):\n"
+                            + eng_text
+                            + "\n\nExplanation (User language):\n"
+                            + eng_text
+                        )
+
+            else:
+                parts = ai_response.split("Explanation (English):")
+
+                if len(parts) > 1:
+                    before = parts[0]
+                    after = parts[1]
+                    eng_text = after.strip().split("\n")[0]
+
+                    ai_response = (
+                        before
+                        + "Explanation (English):\n"
+                        + eng_text
+                        + "\n\nExplanation (User language):\n"
+                        + eng_text
+                    )
 
         # 💾 SAVE CACHE
         try:
