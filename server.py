@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v14"
+PROMPT_VERSION = "v15"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -408,78 +408,39 @@ Never skip sections.
 
 STRUCTURE:
 
-Detected language: <language name>
+Detected language:
+<language name>
 
 Original sentence:
+<repeat the user's sentence>
 
-* If the input is English:
-  <sentence with ALL mistakes wrapped in <wrong> tags>
-* If the input is NOT English:
-  <repeat the original sentence WITHOUT any <wrong> tags>
-
-English version: <correct English sentence>
-The "English version" MUST ALWAYS be in English.
+English version:
+<correct English sentence>
 
 Explanation (English):
-<clear grammar explanation, MAX 2 sentences>
+<short explanation, max 2 sentences>
 
 Explanation (User language):
-<explanation in user language OR simple English, MAX 2 sentences>
+<translation of explanation into detected language OR simple English if input is English>
 
 IMPORTANT RULES:
 
-WRONG TAGS
+LANGUAGE ENFORCEMENT:
 
-<wrong> tags are allowed ONLY inside the "Original sentence" section.
+- If detected language is English:
+  Explanation (User language) MUST be in English.
 
-If the input language is English:
+- If detected language is NOT English:
+  Explanation (User language) MUST be in the SAME language as the input.
 
-* You MUST mark ALL grammar AND spelling mistakes using <wrong> tags
+NEVER use a different language.
 
-If the input language is NOT English:
+If unsure, default to English.
 
-* DO NOT use <wrong> tags
-* Just repeat the original sentence
+CRITICAL:
 
-Never skip a mistake.
-
-LANGUAGE RULES
-
-If the detected language is English:
-
-* BOTH explanations MUST be in simple English
-
-If the detected language is NOT English:
-
-* Explanation (User language) MUST be in the SAME language as the input
-
-STRICT LANGUAGE ENFORCEMENT:
-
-Explanation (User language) MUST follow the detected language EXACTLY.
-
-* If detected language is English:
-  Explanation (User language) MUST be English only
-
-* If detected language is NOT English:
-  Explanation (User language) MUST be in the SAME language as the input
-
-NEVER mix languages.
-
-NEVER use Spanish, French, or any other language unless it EXACTLY matches the input language.
-
-If unsure, ALWAYS default to English.
-
-CRITICAL RULE:
-
-The "English version" MUST NEVER contain <wrong> tags.
-
-FINAL CHECK BEFORE RESPONSE:
-
-1. Does "Explanation (User language)" match the detected language?
-2. Are there NO mixed languages?
-3. Are ALL sections present?
-
-If any answer is NO, fix it before responding.
+Explanation (User language) MUST NOT be empty.
+Explanation (User language) MUST NOT be in English if input is NOT English.
 
 """,
                 },
