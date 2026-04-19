@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v17"
+PROMPT_VERSION = "v18"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -410,8 +410,6 @@ Translate THAT SAME explanation into the user's language.
 
 You MUST NOT merge the two steps.
 
----
-
 OUTPUT FORMAT:
 
 Detected language:
@@ -429,8 +427,6 @@ Explanation (English):
 Explanation (User language):
 <translated version of the SAME explanation>
 
----
-
 STRICT RULES:
 
 - "English version" MUST be correct English
@@ -447,7 +443,6 @@ STRICT RULES:
 
 - NEVER mix languages
 - NEVER leave sections empty
-
 """,
                 },
                 {"role": "user", "content": normalized_message},
@@ -459,52 +454,74 @@ STRICT RULES:
         # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
 
-        # ✅ FALLBACK IDE OVDE (UVUČEN!)
+        # 🧠 DETECT LANGUAGE
+        detected_language = "English"
+        if "Detected language:" in ai_response:
+            try:
+                detected_language = (
+                    ai_response.split("Detected language:")[1].split("\n")[0].strip()
+                )
+            except Exception:
+                pass
+
+        # 🧠 EXTRACT ENGLISH EXPLANATION
+        english_explanation = ""
+        if "Explanation (English):" in ai_response:
+            try:
+                english_explanation = (
+                    ai_response.split("Explanation (English):")[1]
+                    .split("\n")[0]
+                    .strip()
+                )
+            except Exception:
+                pass
+
+        # 🧠 EXTRACT USER PART
+        user_part = ""
         if "Explanation (User language):" in ai_response:
-            parts = ai_response.split("Explanation (User language):")
+            try:
+                user_part = ai_response.split("Explanation (User language):")[1].strip()
+            except Exception:
+                pass
 
-            if len(parts) > 1:
-                after = parts[1].strip()
+        # 🔥 CHECK LANGUAGE
+        def is_english(text):
+            words = [" the ", " is ", " are ", " was ", " were ", " have "]
+            return any(w in text.lower() for w in words)
 
-                # 🔥 DETECT FAKE USER LANGUAGE (simple check)
-                is_english_like = " the " in after.lower() or " is " in after.lower()
+        if detected_language.lower() != "english" and (
+            user_part == "" or len(user_part) < 5 or is_english(user_part)
+        ):
+            print("⚠️ FORCING TRANSLATION")
 
-                if after == "" or len(after) < 5 or is_english_like:
-                    print("⚠️ INVALID USER LANGUAGE → FIXING")
+            try:
+                translation = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    temperature=0,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": f"Translate this to {detected_language}. Only return translation.",
+                        },
+                        {
+                            "role": "user",
+                            "content": english_explanation,
+                        },
+                    ],
+                )
 
-                    eng_parts = ai_response.split("Explanation (English):")
+                translated_text = translation.choices[0].message.content.strip()
 
-                    if len(eng_parts) > 1:
-                        before = eng_parts[0]
-                        eng_after = eng_parts[1]
+                before = ai_response.split("Explanation (User language):")[0]
 
-                        eng_text = eng_after.strip().split("\n")[0]
+                ai_response = (
+                    before + "Explanation (User language):\n" + translated_text
+                )
 
-                        ai_response = (
-                            before
-                            + "Explanation (English):\n"
-                            + eng_text
-                            + "\n\nExplanation (User language):\n"
-                            + eng_text
-                        )
+            except Exception as e:
+                print("TRANSLATION ERROR:", e)
 
-            else:
-                parts = ai_response.split("Explanation (English):")
-
-                if len(parts) > 1:
-                    before = parts[0]
-                    after = parts[1]
-                    eng_text = after.strip().split("\n")[0]
-
-                    ai_response = (
-                        before
-                        + "Explanation (English):\n"
-                        + eng_text
-                        + "\n\nExplanation (User language):\n"
-                        + eng_text
-                    )
-
-        # 💾 SAVE CACHE
+        # 💾 SAVE CACHE (MORA BITI VAN if/except)
         try:
             await ai_cache.insert_one(
                 {
