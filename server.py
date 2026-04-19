@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v18"
+PROMPT_VERSION = "v19"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -454,6 +454,15 @@ STRICT RULES:
         # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
 
+        # 🔥 FORCE LINE BREAK FIX
+        ai_response = ai_response.replace(
+            ".Explanation (User language):", ".\n\nExplanation (User language):"
+        )
+
+        # 🔥 FIX 2 (BONUS)
+        ai_response = ai_response.replace(
+            "Explanation (User language):", "\n\nExplanation (User language):"
+        )
         # 🧠 DETECT LANGUAGE
         detected_language = "English"
         if "Detected language:" in ai_response:
