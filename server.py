@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v19"
+PROMPT_VERSION = "v20"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -363,7 +363,7 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
             )
             user["daily_messages_used"] = 0
 
-        # 🧠 SMART BLOCK
+        # 🧠 VALIDATION
         if len(data.message) > 300:
             raise HTTPException(status_code=400, detail="Message too long")
 
@@ -398,19 +398,9 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
                 {
                     "role": "system",
                     "content": """
-You are an English teacher.
+You are a professional English teacher.
 
-You MUST follow these steps EXACTLY:
-
-STEP 1:
-Write the explanation in English.
-
-STEP 2:
-Translate THAT SAME explanation into the user's language.
-
-You MUST NOT merge the two steps.
-
-OUTPUT FORMAT:
+You MUST follow this EXACT structure.
 
 Detected language:
 <language>
@@ -422,25 +412,19 @@ English version:
 <correct English sentence>
 
 Explanation (English):
-<English explanation>
+<short explanation>
 
 Explanation (User language):
-<translated version of the SAME explanation>
+<translation of the SAME explanation>
 
 STRICT RULES:
 
+- NEVER merge sections
+- ALWAYS use new lines
 - "English version" MUST be correct English
-- NEVER repeat the original sentence
-
-- You MUST first write Explanation (English)
+- DO NOT repeat original sentence
+- First write English explanation
 - THEN translate it
-
-- DO NOT create a new explanation in the second section
-- ONLY translate the English explanation
-
-- If input is German → second explanation MUST be German
-- If input is English → use simple English
-
 - NEVER mix languages
 - NEVER leave sections empty
 """,
@@ -454,15 +438,21 @@ STRICT RULES:
         # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
 
-        # 🔥 FORCE LINE BREAK FIX
-        ai_response = ai_response.replace(
-            ".Explanation (User language):", ".\n\nExplanation (User language):"
+        # 🔥 FIX STRUCTURE (KEY FIX)
+        import re
+
+        ai_response = re.sub(
+            r"(Explanation \(English\):)",
+            r"\n\n\1",
+            ai_response,
         )
 
-        # 🔥 FIX 2 (BONUS)
-        ai_response = ai_response.replace(
-            "Explanation (User language):", "\n\nExplanation (User language):"
+        ai_response = re.sub(
+            r"(Explanation \(User language\):)",
+            r"\n\n\1",
+            ai_response,
         )
+
         # 🧠 DETECT LANGUAGE
         detected_language = "English"
         if "Detected language:" in ai_response:
@@ -470,7 +460,7 @@ STRICT RULES:
                 detected_language = (
                     ai_response.split("Detected language:")[1].split("\n")[0].strip()
                 )
-            except Exception:
+            except:
                 pass
 
         # 🧠 EXTRACT ENGLISH EXPLANATION
@@ -482,7 +472,7 @@ STRICT RULES:
                     .split("\n")[0]
                     .strip()
                 )
-            except Exception:
+            except:
                 pass
 
         # 🧠 EXTRACT USER PART
@@ -490,10 +480,10 @@ STRICT RULES:
         if "Explanation (User language):" in ai_response:
             try:
                 user_part = ai_response.split("Explanation (User language):")[1].strip()
-            except Exception:
+            except:
                 pass
 
-        # 🔥 CHECK LANGUAGE
+        # 🔥 CHECK IF USER LANGUAGE FAILS
         def is_english(text):
             words = [" the ", " is ", " are ", " was ", " were ", " have "]
             return any(w in text.lower() for w in words)
@@ -530,7 +520,7 @@ STRICT RULES:
             except Exception as e:
                 print("TRANSLATION ERROR:", e)
 
-        # 💾 SAVE CACHE (MORA BITI VAN if/except)
+        # 💾 SAVE CACHE
         try:
             await ai_cache.insert_one(
                 {
