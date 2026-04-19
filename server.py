@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v20"
+PROMPT_VERSION = "v21"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -400,7 +400,7 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
                     "content": """
 You are a professional English teacher.
 
-You MUST follow this EXACT structure.
+You MUST follow this EXACT structure:
 
 Detected language:
 <language>
@@ -419,14 +419,19 @@ Explanation (User language):
 
 STRICT RULES:
 
+- You MUST ALWAYS provide BOTH explanations
+- Explanation (User language) is REQUIRED
+- First write Explanation (English)
+- Then translate it into user language
+
 - NEVER merge sections
 - ALWAYS use new lines
-- "English version" MUST be correct English
+- NEVER skip any section
+- NEVER leave Explanation (User language) empty
+
+- English version MUST be correct English
 - DO NOT repeat original sentence
-- First write English explanation
-- THEN translate it
 - NEVER mix languages
-- NEVER leave sections empty
 """,
                 },
                 {"role": "user", "content": normalized_message},
@@ -438,44 +443,34 @@ STRICT RULES:
         # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
 
-        # 🔥 FIX STRUCTURE (KEY FIX)
-        import re
+        # =========================
+        # 🔥 HARD PARSER (KEY FIX)
+        # =========================
 
-        ai_response = re.sub(
-            r"(Explanation \(English\):)",
-            r"\n\n\1",
-            ai_response,
-        )
+        try:
+            detected = ai_response.split("Detected language:")[1].split("\n")[0].strip()
+        except:
+            detected = "Unknown"
 
-        ai_response = re.sub(
-            r"(Explanation \(User language\):)",
-            r"\n\n\1",
-            ai_response,
-        )
+        try:
+            original = ai_response.split("Original sentence:")[1].split("\n")[0].strip()
+        except:
+            original = normalized_message
 
-        # 🧠 DETECT LANGUAGE
-        detected_language = "English"
-        if "Detected language:" in ai_response:
-            try:
-                detected_language = (
-                    ai_response.split("Detected language:")[1].split("\n")[0].strip()
-                )
-            except:
-                pass
+        try:
+            english_version = (
+                ai_response.split("English version:")[1].split("\n")[0].strip()
+            )
+        except:
+            english_version = ""
 
-        # 🧠 EXTRACT ENGLISH EXPLANATION
-        english_explanation = ""
-        if "Explanation (English):" in ai_response:
-            try:
-                english_explanation = (
-                    ai_response.split("Explanation (English):")[1]
-                    .split("\n")[0]
-                    .strip()
-                )
-            except:
-                pass
+        try:
+            explanation_en = (
+                ai_response.split("Explanation (English):")[1].split("\n")[0].strip()
+            )
+        except:
+            explanation_en = ""
 
-        # 🧠 EXTRACT USER PART
         user_part = ""
         if "Explanation (User language):" in ai_response:
             try:
@@ -483,16 +478,8 @@ STRICT RULES:
             except:
                 pass
 
-        # 🔥 CHECK IF USER LANGUAGE FAILS
-        def is_english(text):
-            words = [" the ", " is ", " are ", " was ", " were ", " have "]
-            return any(w in text.lower() for w in words)
-
-        if detected_language.lower() != "english" and (
-            user_part == "" or len(user_part) < 5 or is_english(user_part)
-        ):
-            print("⚠️ FORCING TRANSLATION")
-
+        # 🔥 AUTO TRANSLATE IF FAIL
+        if detected.lower() != "english" and (user_part == "" or len(user_part) < 5):
             try:
                 translation = openai_client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -500,25 +487,36 @@ STRICT RULES:
                     messages=[
                         {
                             "role": "system",
-                            "content": f"Translate this to {detected_language}. Only return translation.",
+                            "content": f"Translate this to {detected}. Only return translation.",
                         },
                         {
                             "role": "user",
-                            "content": english_explanation,
+                            "content": explanation_en,
                         },
                     ],
                 )
 
-                translated_text = translation.choices[0].message.content.strip()
-
-                before = ai_response.split("Explanation (User language):")[0]
-
-                ai_response = (
-                    before + "Explanation (User language):\n" + translated_text
-                )
+                user_part = translation.choices[0].message.content.strip()
 
             except Exception as e:
                 print("TRANSLATION ERROR:", e)
+
+        # 🔥 FINAL STRUCTURE (100% CONTROL)
+        ai_response = f"""Detected language:
+{detected}
+
+Original sentence:
+{original}
+
+English version:
+{english_version}
+
+Explanation (English):
+{explanation_en}
+
+Explanation (User language):
+{user_part}
+"""
 
         # 💾 SAVE CACHE
         try:
