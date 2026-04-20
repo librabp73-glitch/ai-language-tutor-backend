@@ -440,6 +440,8 @@ STRICT RULES:
 
         ai_response = completion.choices[0].message.content
 
+        print("🔥 RAW AI RESPONSE:", ai_response)
+
         # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
 
