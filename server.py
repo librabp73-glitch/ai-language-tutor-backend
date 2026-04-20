@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v22"
+PROMPT_VERSION = "v24"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -449,29 +449,18 @@ STRICT RULES:
         # 🔥 HARD PARSER (KEY FIX)
         # =========================
 
-        try:
-            detected = ai_response.split("Detected language:")[1].split("\n")[0].strip()
-        except:
-            detected = "Unknown"
+        def extract_value(text, key):
+            try:
+                part = text.split(key)[1].strip()
+                lines = part.split("\n")
+                return lines[0] if len(lines) > 0 else ""
+            except:
+                return ""
 
-        try:
-            original = ai_response.split("Original sentence:")[1].split("\n")[0].strip()
-        except:
-            original = normalized_message
-
-        try:
-            english_version = (
-                ai_response.split("English version:")[1].split("\n")[0].strip()
-            )
-        except:
-            english_version = ""
-
-        try:
-            explanation_en = (
-                ai_response.split("Explanation (English):")[1].split("\n")[0].strip()
-            )
-        except:
-            explanation_en = ""
+        detected = extract_value(ai_response, "Detected language:")
+        original = extract_value(ai_response, "Original sentence:")
+        english_version = extract_value(ai_response, "English version:")
+        explanation_en = extract_value(ai_response, "Explanation (English):")
 
         user_part = ""
         if "Explanation (User language):" in ai_response:
