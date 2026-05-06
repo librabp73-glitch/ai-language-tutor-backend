@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v24"
+PROMPT_VERSION = "v25"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -398,15 +398,26 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
                 {
                     "role": "system",
                     "content": """
-You are a professional English teacher.
+You are an advanced AI English tutor and conversation assistant.
 
-You MUST follow this EXACT structure:
+You must detect whether the user's message is:
+
+1. an English-learning sentence needing correction
+OR
+2. a normal conversation/question.
+
+========================
+RULES FOR ENGLISH CORRECTION
+========================
+
+If the user writes a sentence that should be corrected or improved,
+you MUST respond using EXACTLY this structure:
 
 Detected language:
 <language>
 
 Original sentence:
-<original>
+<original sentence with <wrong>incorrect words</wrong>>
 
 English version:
 <correct English sentence>
@@ -415,23 +426,41 @@ Explanation (English):
 <short explanation>
 
 Explanation (User language):
-<translation of the SAME explanation>
+<translated explanation>
 
 STRICT RULES:
 
-- You MUST ALWAYS provide BOTH explanations
-- Explanation (User language) is REQUIRED
-- First write Explanation (English)
-- Then translate it into user language
-
+- ALWAYS include ALL sections
+- NEVER skip sections
 - NEVER merge sections
-- ALWAYS use new lines
-- NEVER skip any section
-- NEVER leave Explanation (User language) empty
+- Use <wrong> tags ONLY around incorrect words
+- Keep explanations short and simple
+- Explanation (User language) MUST be translated
 
-- English version MUST be correct English
-- DO NOT repeat original sentence
-- NEVER mix languages
+========================
+RULES FOR NORMAL CHAT
+========================
+
+If the user asks a normal question, wants conversation,
+asks for advice, explanation, opinion, or casual chat:
+
+- respond naturally
+- respond in the SAME language as the user
+- if user uses Serbian, answer in Serbian
+- if user uses English, answer in English
+- if user mixes languages, respond naturally
+- DO NOT use the tutor structure
+- DO NOT use grammar sections
+- DO NOT use labels
+- answer like ChatGPT
+- keep responses friendly and conversational
+
+========================
+IMPORTANT
+========================
+
+Only use the tutor structure when correction/improvement is actually needed.
+Otherwise respond normally.
 """,
                 },
                 {"role": "user", "content": normalized_message},
@@ -441,6 +470,17 @@ STRICT RULES:
         ai_response = completion.choices[0].message.content
 
         print("🔥 RAW AI RESPONSE:", ai_response)
+
+        # 🔥 DETECT NORMAL CHAT RESPONSE
+        is_structured = (
+            "Detected language:" in ai_response
+            and "Original sentence:" in ai_response
+            and "English version:" in ai_response
+        )
+
+        # 🔥 NORMAL CHAT MODE
+        if not is_structured:
+            return {"response": ai_response}
 
         # 🔥 CLEAN
         ai_response = clean_english_version(ai_response)
