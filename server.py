@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v25"
+PROMPT_VERSION = "v26"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -410,8 +410,14 @@ OR
 RULES FOR ENGLISH CORRECTION
 ========================
 
-If the user writes a sentence that should be corrected or improved,
-you MUST respond using EXACTLY this structure:
+ONLY use the tutor correction structure IF:
+
+- the user clearly made a grammar mistake
+- the sentence needs language correction
+- the user explicitly asks for correction
+- the user is practicing a foreign language sentence
+
+Otherwise use normal conversational chat.
 
 Detected language:
 <language>
@@ -420,7 +426,7 @@ Original sentence:
 <original sentence with <wrong>incorrect words</wrong>>
 
 English version:
-<correct English sentence>
+<translate the corrected sentence into NATURAL English ONLY>
 
 Explanation (English):
 <short explanation>
@@ -436,6 +442,8 @@ STRICT RULES:
 - Use <wrong> tags ONLY around incorrect words
 - Keep explanations short and simple
 - Explanation (User language) MUST be translated
+- "English version" MUST ALWAYS be written in English
+- NEVER return the corrected sentence in the original language inside "English version"
 
 ========================
 RULES FOR NORMAL CHAT
