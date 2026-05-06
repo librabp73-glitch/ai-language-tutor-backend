@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v27"
+PROMPT_VERSION = "v28"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -377,7 +377,11 @@ async def chat_send(data: ChatRequest, user_id: str = Depends(get_current_user))
 
         # 🧠 CACHE CHECK
         cached = await ai_cache.find_one(
-            {"sentence_hash": sentence_hash, "prompt_version": PROMPT_VERSION}
+            {
+                "sentence_hash": sentence_hash,
+                "prompt_version": PROMPT_VERSION,
+                "mode": "chat",
+            }
         )
 
         if cached:
@@ -503,6 +507,7 @@ Explanation (User language):
                 {
                     "sentence_hash": sentence_hash,
                     "prompt_version": PROMPT_VERSION,
+                    "mode": "chat",
                     "user_input": normalized_message,
                     "ai_response": ai_response,
                     "created_at": datetime.utcnow(),
@@ -539,7 +544,11 @@ async def lesson_ai_check(
         print("HASH LESSON:", sentence_hash)
 
         cached = await ai_cache.find_one(
-            {"sentence_hash": sentence_hash, "prompt_version": PROMPT_VERSION}
+            {
+                "sentence_hash": sentence_hash,
+                "prompt_version": PROMPT_VERSION,
+                "mode": "lesson",
+            }
         )
 
         # ✅ CACHE HIT
@@ -705,6 +714,7 @@ Never add extra commentary.
                     "created_at": datetime.utcnow(),
                     "usage_count": 1,
                     "prompt_version": PROMPT_VERSION,
+                    "mode": "lesson",
                 }
             )
 
