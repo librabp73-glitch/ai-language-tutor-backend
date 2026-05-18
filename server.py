@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v30"
+PROMPT_VERSION = "v31"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -721,6 +721,44 @@ Never add extra commentary.
         )
 
         ai_response = completion.choices[0].message.content
+
+        # 🔥 FORCE ENGLISH EXPLANATION CONSISTENCY
+
+        try:
+            detected = ""
+            explanation_en = ""
+
+            if "Detected language:" in ai_response:
+                detected = (
+                    ai_response.split("Detected language:")[1].split("\n")[1].strip()
+                )
+
+            if "Explanation (English):" in ai_response:
+                explanation_en = (
+                    ai_response.split("Explanation (English):")[1]
+                    .split("Explanation (User language):")[0]
+                    .strip()
+                )
+
+            # ✅ FORCE SAME ENGLISH EXPLANATION
+            if detected.lower() == "english":
+
+                before = ai_response.split("Explanation (User language):")[0]
+
+                after = ""
+                if "Task feedback:" in ai_response:
+                    after = "Task feedback:" + ai_response.split("Task feedback:")[1]
+
+                ai_response = (
+                    before
+                    + "Explanation (User language):\n"
+                    + explanation_en
+                    + "\n\n"
+                    + after
+                )
+
+        except Exception as e:
+            print("LANGUAGE ENFORCEMENT ERROR:", e)
 
         # ✅ CACHE SAVE
         try:
