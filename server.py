@@ -27,7 +27,7 @@ TOKEN_EXPIRE_DAYS = 7
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PROMPT_VERSION = "v28"
+PROMPT_VERSION = "v29"
 
 print("OPENAI_API_KEY LOADED:", OPENAI_API_KEY[:10] if OPENAI_API_KEY else "NONE")
 
@@ -225,21 +225,34 @@ A student made these mistakes:
 
 {mistakes}
 
-Create a short personalized lesson.
+Create a short, beginner-friendly English lesson.
+
+The lesson must:
+- be easy to understand
+- sound encouraging and friendly
+- help the student practice common mistakes
+- focus on practical English writing
+- avoid long grammar theory
 
 Return EXACTLY in this format:
 
 Title:
-<lesson title>
+<short lesson title>
 
 Explanation:
-<short explanation>
+<2-4 short beginner-friendly sentences>
 
 Example:
-<example sentence>
+<simple correct English example>
 
 Task:
-<task for the student>
+<clear practice task for the student>
+
+IMPORTANT:
+- Keep the explanation simple and practical.
+- Write like a friendly English tutor.
+- The student should immediately understand what to do.
+- Avoid complex grammar terminology.
 """
 
     completion = openai_client.chat.completions.create(
